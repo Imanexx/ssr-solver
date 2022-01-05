@@ -1,0 +1,5 @@
+__pycache__
+*.out
+*.dem
+maps/test*
+decode.py
