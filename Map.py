@@ -101,23 +101,34 @@ class Map():
 		return False
 
 # MAP_NAME = 'maps/beautiful_horizon'
-MAP_NAME = 'maps/eastreach'
+MAP_NAME = 'maps/southjaunt'
 
 if __name__ == "__main__":
 	game = Map(MAP_NAME)
 	print(game.width)
+	print(game.player.score())
 	print(game)
-	print(game.entities[1].get_edges())
-	print(game.entities[2].get_edges())
 
-	search = NextAction("", MAP_NAME)
-	poss = search.find_target_positions(game.entities[1], game.width)
-	for pos, face, force in (sorted(poss, key=lambda x : x[0])):
-		print(f"{pos} {face:10} {force}")
+	# search = NextAction("", MAP_NAME)
+	# visited, moves = search.flood_fill()
+	# print(len(visited), len(moves))
+	# visited = sorted(list(zip(visited, moves)), key=lambda x : int(str(x[0])[-3:]))
+	# print(visited)
+	# for pos, moves in visited:
+	# 	print(game.player.descore_position(pos), moves)
+	
+	# print("")
 
-	# algo = Algo(MAP_NAME)
-	# moves = algo.run()
-	# print(game)
+	# moves = search.reachable()
+	# print(moves)
+
+	# poss = search.find_target_positions(game.entities[1], game.width)
+	# for pos, face, force in (sorted(poss, key=lambda x : x[0])):
+	# 	print(f"{pos} {face:10} {force}")
+
+	algo = Algo(MAP_NAME)
+	moves = algo.run()
+	print(game)
 	# score, win, lost = algo.play_moves(moves, debug=True)
 	
 	# bfs = NextAction('D', MAP_NAME)

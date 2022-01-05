@@ -135,8 +135,7 @@ class Sausage(Entity):
 
 
 	def score(self):
-		# TODO - SWAP THESE around since 0000 is lost in int and overlap can occur
-		# Similar problem for player score too
+		# TODO - DO PROPER PADDING
 		parity = self.flip_side
 		score = int(f"{self.pos}{parity}{self.sides}")
 		return score
@@ -267,23 +266,25 @@ class Player(Entity):
 	def get_positions(self) -> list:
 		return [self.pos, self.fork_position()]
 
-	def score(self):
-		# Find direction
-		directional_multiplier = 0
-		if self.face_direction == Move.LEFT:
-			pass
-		if self.face_direction == Move.UP:
-			directional_multiplier = 1
-		if self.face_direction == Move.RIGHT:
-			directional_multiplier = 2
-		if self.face_direction == Move.DOWN:
-			directional_multiplier = 3
+	def score_padding(self):
+		return len(str(self.game.height * self.game.width))
 
-		dir_score = self.game.width * self.game.height * directional_multiplier
+	def score(self):
+		padding = self.score_padding()
+
 		holding = 0
 		if self.holding:
 			holding = 1
-		return int(f"{dir_score + self.pos}{holding}")
+
+		# Note: Leading '1' is there so int conversion doesn't throw away leading 0's
+		return int(f"1{self.face_direction.value}{holding}{self.pos:0>{padding}}")
+
+	def descore_position(self, score):
+		padding = self.score_padding()
+		return int(str(score)[-padding:])
+
+	def descore_direction(self, score):
+		return Move(int(str(score)[1]))
 
 	def stick_sausage(self, entity):
 		self.holding = entity

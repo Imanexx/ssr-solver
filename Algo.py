@@ -252,7 +252,7 @@ class Algo():
 				heapq.heappush(heap, MinHeap((new_move, next_force)))
 
 	def run(self):		
-		# return self.BFS() # RDDLLULRDURURLULRU
+		return self.BFS() # RDDLLULRDURURLULRU
 		return self.Dijkstra() # RDDLLULDURRURLULRU
 
 class NextAction():
@@ -301,33 +301,36 @@ class NextAction():
 	def reachable(self):
 		game = Load.Map(self.filename)
 		self.play_moves(game, self.start_board)
-		plays = []
+		
+		visited_scores, all_moves = self.flood_fill()
+		visited = []
+		for score in visited_scores:
+			pos = game.player.descore_position(score)
+			direction = game.player.descore_direction(score)
+			visited.append((pos, direction))
+
+		plays = set()
 		for sausage in game.entities:
 			if isinstance(sausage, Entity.Player):
 				continue
-			
-			to_try = self.find_target_positions(game, sausage)
-			for pos, face_direction, force in to_try:
-				moves = self.reach_target(pos, face_direction)
-				if moves:
-					plays.append((moves, force))
-				elif moves == "":
-					# Already on correct position. Hence; Moves == ""
-					plays.append((moves, force))
+
+			results = self.find_target_positions(sausage, game.width)
+			for target, facing, push in results:
+				if (target, facing) in visited:
+					index = visited.index((target, facing))
+					moves = all_moves[index]
+					plays.add((moves, push))
 
 		return plays
 
-	def reach_target(self, tpos, direction):
+	def flood_fill(self):
 		combinations = ['L', 'U', 'R', 'D']
 		
 		game = self.load_game()
-		# Possible that you are already there
-		if game.player.pos == tpos and game.player.face_direction == direction:
-			return ""
 
 		visited = [game.player.score()]
+		visited_moves = [""]
 		queue = [letter for letter in combinations]
-		found = False
 		while queue:
 			moves = queue.pop(0)
 			game = self.load_game()
@@ -336,61 +339,16 @@ class NextAction():
 				continue
 			if game_state.lost():
 				continue
-			if game_state.player.pos == tpos and game_state.player.face_direction == direction:
-				found = True
-				break
 
 			visited.append(game_state.player.score())
-			
+			visited_moves.append(moves)
+			# print(f"\t{game_state.player.score()} {moves}")
 			for letter in combinations:
 				queue.append(moves + letter)
 
-		if not found:
-			return None
-
-		return moves
+		return visited, visited_moves
 
 	def find_target_positions(self, sausage, width):
-		# def add(list_positions, pos, moves_towards, width, face_in, push_direction):
-		# 	for move in moves_towards:
-		# 		pos = calc_move(pos, move, width)
-			
-		# 	# Can player even stand there?
-		# 	stand_tile = game.find_tile(pos)
-		# 	if not stand_tile:
-		# 		return
-		# 	if not isinstance(stand_tile, Tile.Ground):
-		# 		return
-		# 	if stand_tile.zpos > 1:
-		# 		return
-
-		# 	# Can player face there?
-		# 	face_pos = calc_move(pos, face_in, width)
-		# 	face_tile = game.find_tile(face_pos)
-		# 	if not face_tile:
-		# 		pass # Fork over water is fine
-		# 	elif isinstance(face_tile, Tile.Ground) and face_tile.zpos > 1:
-		# 		return # Fork would be in wall
-			
-		# 	if face_in == push_direction or opposite_force(face_in) == push_direction:
-		# 		# Is player able to push?
-		# 		push_pos = calc_move(pos, push_direction, width)
-		# 		push_tile = game.find_tile(push_pos)
-		# 		if not push_tile:
-		# 			return
-		# 	else:
-		# 		# Can player rotate?
-		# 		rotate_pos = calc_move(pos, face_in, width)
-		# 		rotate_pos = calc_move(rotate_pos, push_direction, width)
-		# 		rotate_tile = game.find_tile(rotate_pos)
-		# 		if not rotate_tile:
-		# 			pass
-		# 		elif isinstance(rotate_tile, Tile.Ground):
-		# 			if rotate_tile.zpos > 1:
-		# 				return
-
-		# 	list_positions.append((pos, face_in, push_direction))
-
 		# Corners are defined the same for both sausages
 		corners = sausage.get_corners() * 2
 		corner_directions = [
@@ -404,7 +362,6 @@ class NextAction():
 
 		# Edges are slightly different depending on the orientation
 		edges = sausage.get_edges() * 3
-		print(f"{edges=}")
 		if sausage.direction == Orientation.HORIZONTAL:
 			edge_directions = [
 				Move.UP, Move.UP, Move.RIGHT, Move.DOWN, Move.DOWN, Move.LEFT, # Normals
@@ -437,5 +394,4 @@ class NextAction():
 		all_positions = corners + edges + extended
 		all_face_directions = corner_directions + edge_directions + extended_directions
 		all_forces = corner_forces + edge_forces + extended_forces
-		print(f"{len(all_positions)=} {len(all_face_directions)=} {len(all_forces)=}")
 		return list(zip(all_positions, all_face_directions, all_forces))
