@@ -45,6 +45,16 @@ def opposite_force(force : Move):
 	if force == Move.DOWN:
 		return Move.UP
 
+def move_to_letter(move):
+	if move == Move.UP:
+		return 'U'
+	if move == Move.DOWN:
+		return 'D'
+	if move == Move.LEFT:
+		return 'L'
+	if move == Move.RIGHT:
+		return 'R'
+
 def perpendicular_force(force : Move):
 	if force == Move.RIGHT or force == Move.LEFT:
 		return Move.DOWN

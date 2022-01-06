@@ -101,7 +101,8 @@ class Map():
 		return False
 
 # MAP_NAME = 'maps/beautiful_horizon'
-MAP_NAME = 'maps/southjaunt'
+MAP_NAME = 'maps/maidens_walk'
+# MAP_NAME = 'maps/little_fire'
 
 if __name__ == "__main__":
 	game = Map(MAP_NAME)
@@ -109,7 +110,11 @@ if __name__ == "__main__":
 	print(game.player.score())
 	print(game)
 
-	# search = NextAction("", MAP_NAME)
+	# search = NextAction("U", MAP_NAME)
+	# search.warshall()
+	# search.next_actions(game.player.pos, game.player.face_direction)
+
+
 	# visited, moves = search.flood_fill()
 	# print(len(visited), len(moves))
 	# visited = sorted(list(zip(visited, moves)), key=lambda x : int(str(x[0])[-3:]))
