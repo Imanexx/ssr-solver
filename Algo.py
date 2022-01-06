@@ -223,7 +223,7 @@ class Algo():
 
 		search = NextAction('', self.filename)
 		moves = search.reachable(initial_game.player.pos, initial_game.player.face_direction)
-		print(sorted(moves,key=lambda x : len(x)))
+		# print(sorted(moves,key=lambda x : len(x)))
 		heap = []
 		for m in moves:
 			heapq.heappush(heap, MinHeap(m))
@@ -269,10 +269,16 @@ class Algo():
 				print("No way to win with this because a prior sequence was better.")
 				continue
 
-			if not game:
+			# House keeping
+			score = game.score()
+			if score in visited:
+				print("\tDijk - Skip")
+				exit(1) # REMOVE
 				continue
 
-			score = game.score()
+			sausages_score = score[1:]
+
+			# When everything is cooked see if you can get to the end
 			if game.all_cooked():
 				print("\tFound a cooked position: BFS to end...")
 				print(f"\t\t{moves}")
@@ -280,37 +286,31 @@ class Algo():
 				result = self.BFS(moves, supress_output=True)
 				print('\n======= BFS ENDED ===========\n')
 				print(f"Checking {lowest} moves...")
+				
 				if result == False:
+					# TODO: Not possible... This configuration should be banned
+					print("Configuration should be banned")
 					continue
+				
 				# TODO: Hacky end condition
 				heapq.heappush(heap, MinHeap(result))
 				completed_best = len(result)
 
-			if score in visited:
-				print("\tDijk - Skip")
-				exit(1)
-				continue
 			if game.lost():
-			# if game.lost() or run_deadlock(game):
 				continue
-
 			visited.append(score)
 
+			# Seems valid - Plan out next lot of actions and add on buffer
 			search = NextAction(moves, self.filename)
 			next_moves = search.reachable(game.player.pos, game.player.face_direction)
-			# print(f"{next_moves=}")
-			# print(f"{heap=}")
-			
 			for next_move in next_moves:
 				new_move = moves + next_move
-				if len(new_move) > max_moves:
-					max_moves = len(new_move)
 				heapq.heappush(heap, MinHeap(new_move))
 				
-				# print(f"\t\t{new_move=}")
-			# print(f"{heap=}")
-			# exit(1)
-
+				# stat tracker
+				if len(new_move) > max_moves:
+					max_moves = len(new_move)
+				
 	def run(self):		
 		# return self.BFS() # Select Algo
 		return self.Dijkstra() # Select algo

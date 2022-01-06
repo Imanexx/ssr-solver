@@ -100,8 +100,8 @@ class Map():
 					return True
 		return False
 
-# MAP_NAME = 'maps/beautiful_horizon'
-MAP_NAME = 'maps/seafinger'
+MAP_NAME = 'maps/test'
+# MAP_NAME = 'maps/infants_break'
 # MAP_NAME = 'maps/little_fire'
 
 if __name__ == "__main__":
