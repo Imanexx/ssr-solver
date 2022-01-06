@@ -7,14 +7,12 @@ import Entities as Entity
 import Tiles as Tile
 
 transpose_skip = 0
-flood_fill_skip = 0
-patterns = {}
-repeat_patterns = 0
-pattern_ignore_player = {}
-repeat_patterns_ignore_player = 0
-
 warshall_buffer = {}
 warshall_repeated = 0
+
+def output(str_out, supress=False):
+	if not supress:
+		print(str_out)
 
 def is_water(game, pos):
 	tile = game.find_tile(pos)
@@ -98,8 +96,7 @@ def water_along_direction_only(pos, overhang_direction, game):
 
 class MinHeap(str):
 	def __init__(self, s):
-		self.moves = s[0]
-		self.force = s[1]
+		self.moves = s
 
 	# Overloads to make it a min-heap
 	def __lt__(self, s):
@@ -121,30 +118,17 @@ class MinHeap(str):
 		return len(self.moves) >= len(s.moves)
 
 
-	def moves_force(self):
-		return self.moves, self.force
+	def heap_move(self):
+		return self.moves
 
 class Algo():
 	def __init__(self, filename):
 		self.filename = filename
 
-	def give_move(self, letter):
-		if letter == 'L':
-			return Move.LEFT
-
-		if letter == 'U':
-			return Move.UP
-
-		if letter == 'R':
-			return Move.RIGHT
-
-		if letter == 'D':
-			return Move.DOWN
-
 	def play_moves(self, moves : str, debug=False):
 		game = Load.Map(self.filename)
 		for move in moves:
-			move = self.give_move(move)
+			move = letter_to_move(move)
 			game.play(move)
 			if debug:
 				print(game.score())
@@ -154,7 +138,7 @@ class Algo():
 
 		return game
 
-	def BFS(self, starting_pos=""):
+	def BFS(self, starting_pos="", supress_output=False):
 		combinations = ['L', 'U', 'R', 'D']
 		initial_game =  self.play_moves(starting_pos)
 		if initial_game.win():
@@ -162,7 +146,7 @@ class Algo():
 		starting_score = initial_game.score()
 
 		visited = {str(starting_score) : []}
-		print("Checking 1 move")
+		output("Checking 1 move", supress=supress_output)
 
 		winning = []
 		queue = [starting_pos + move for move in combinations]
@@ -175,9 +159,9 @@ class Algo():
 				break
 
 			if len(moves) > max_moves:
-				print(f'\tTotal considered: {considered}')
+				output(f'\tTotal considered: {considered}', supress=supress_output)
 				considered = 0
-				print(f"Checking {len(moves)} moves")
+				output(f"Checking {len(moves)} moves", supress=supress_output)
 				max_moves = len(moves)
 
 			game = self.play_moves(moves)
@@ -199,7 +183,7 @@ class Algo():
 				queue.append(moves + letter)
 
 		if winning:
-			print("\nMOVES THAT WIN")
+			print(f"\nLeast Moves: {len(moves) - 1}")
 			for moves in winning:
 				print('\t', moves)
 
@@ -212,7 +196,7 @@ class Algo():
 		move_seq = ""
 		for move in moves:
 			move_seq += move
-			move = self.give_move(move)
+			move = letter_to_move(move)
 			game.play(move)
 			
 			if move_seq not in move_table:
@@ -238,38 +222,21 @@ class Algo():
 
 
 		search = NextAction('', self.filename)
-		# moves = search.reachable(initial_game)
-		moves = search.next_actions(initial_game.player.pos, initial_game.player.face_direction)
-		# print(moves)
+		moves = search.reachable(initial_game.player.pos, initial_game.player.face_direction)
+		print(sorted(moves,key=lambda x : len(x)))
 		heap = []
 		for m in moves:
 			heapq.heappush(heap, MinHeap(m))
-		
 		considerations = {}
-		max_moves = len(heap[0].moves_force()[0]) + 1
+		max_moves = len(heap[0].heap_move())
 		lowest = max_moves
 		print(f"Checking {max_moves} moves")
 
+		print(f"{heap=}")
+
 		while heap:
-			item = heapq.heappop(heap)
-			moves, force = item.moves_force()
-
-			# TODO: HACKY
-			if force is None:
-				print("Completed search - Full stats:")
-				for length, total in considerations.items():
-					print(f"\tMove(s): {length} Considered: {total}")
-				print("")
-
-				print(f"Least moves ({len(moves)}): {moves}")
-				print(f"\t{transpose_skip=}")
-				print(f"\t{flood_fill_skip=}")
-				print(f"\t{repeat_patterns=}")
-				print(f"\t{repeat_patterns_ignore_player=}")
-				print(f"\t{warshall_repeated=}")
-				return moves
-
-			tally = len(moves) + 1
+			moves = heapq.heappop(heap).heap_move()
+			tally = len(moves)
 			considerations[tally] = considerations.get(tally, 0) + 1
 			
 			if tally != lowest:
@@ -283,37 +250,45 @@ class Algo():
 
 				print(f"Checking {lowest} moves...")
 
-			if force == Move.UP:
-				moves += "U"
-			elif force == Move.DOWN:
-				moves += "D"
-			elif force == Move.LEFT:
-				moves += "L"
-			elif force == Move.RIGHT:
-				moves += "R"
-
 			game = self.play_and_record(moves, move_table, score_table)
 			if not game:
 				continue
-			# print(f"\t{moves=}")
+			
+			# TODO: HACKY
+			if game.win():
+				print("Completed search - Full stats:")
+				for length, total in considerations.items():
+					print(f"\tMove(s): {length} Considered: {total}")
+				print("")
+
+				print(f"Least moves ({len(moves)}): {moves}")
+				print(f"\t{transpose_skip=}")
+				print(f"\t{warshall_repeated=}")
+				return moves
+			elif completed_best and len(moves) >= completed_best:
+				print("No way to win with this because a prior sequence was better.")
+				continue
+
+			if not game:
+				continue
 
 			score = game.score()
 			if game.all_cooked():
 				print("\tFound a cooked position: BFS to end...")
 				print(f"\t\t{moves}")
 				print('\n======= BFS SECTION ===========')
-				result = self.BFS(moves)
-				print('======= BFS ENDED ===========\n')
+				result = self.BFS(moves, supress_output=True)
+				print('\n======= BFS ENDED ===========\n')
 				print(f"Checking {lowest} moves...")
 				if result == False:
 					continue
-				# TODO: Refactor code so the force is not provided and it's just moves
 				# TODO: Hacky end condition
-				heapq.heappush(heap, MinHeap((result, None)))
+				heapq.heappush(heap, MinHeap(result))
 				completed_best = len(result)
 
 			if score in visited:
 				print("\tDijk - Skip")
+				exit(1)
 				continue
 			if game.lost():
 			# if game.lost() or run_deadlock(game):
@@ -322,13 +297,19 @@ class Algo():
 			visited.append(score)
 
 			search = NextAction(moves, self.filename)
-			# next_moves = search.reachable(game, score_table)
-			next_moves = search.next_actions(game.player.pos, game.player.face_direction)
-			for next_move, next_force in next_moves:
+			next_moves = search.reachable(game.player.pos, game.player.face_direction)
+			# print(f"{next_moves=}")
+			# print(f"{heap=}")
+			
+			for next_move in next_moves:
 				new_move = moves + next_move
-				if len(new_move) + 1 > max_moves:
-					max_moves = len(new_move) + 1
-				heapq.heappush(heap, MinHeap((new_move, next_force)))
+				if len(new_move) > max_moves:
+					max_moves = len(new_move)
+				heapq.heappush(heap, MinHeap(new_move))
+				
+				# print(f"\t\t{new_move=}")
+			# print(f"{heap=}")
+			# exit(1)
 
 	def run(self):		
 		# return self.BFS() # Select Algo
@@ -359,21 +340,9 @@ class NextAction():
 		return game
 
 	def do_moves(self, game, moves, table=None):
-		def give_move(letter):
-			if letter == 'L':
-				return Move.LEFT
-
-			if letter == 'U':
-				return Move.UP
-
-			if letter == 'R':
-				return Move.RIGHT
-
-			if letter == 'D':
-				return Move.DOWN
 		success = True
 		for move in moves:
-			move = give_move(move)
+			move = letter_to_move(move)
 			move_success = game.play(move)
 			# print(f"\t{move_success=}")
 			if table and str(game.score()) in table:
@@ -388,32 +357,7 @@ class NextAction():
 
 		return game
 
-	def reachable(self, game, score_table=None):
-		# game = Load.Map(self.filename)
-		# self.do_moves(game, self.start_board)
-		
-		visited_scores, all_moves = self.flood_fill(score_table)
-		visited = []
-		for score in visited_scores:
-			pos = game.player.descore_position(score)
-			direction = game.player.descore_direction(score)
-			visited.append((pos, direction))
-
-		plays = set()
-		for sausage in game.entities:
-			if isinstance(sausage, Entity.Player):
-				continue
-
-			results = self.find_target_positions(sausage, game.width)
-			for target, facing, push in results:
-				if (target, facing) in visited:
-					index = visited.index((target, facing))
-					moves = all_moves[index]
-					plays.add((moves, push))
-
-		return plays
-
-	def next_actions(self, p_pos, p_face):
+	def reachable(self, p_pos, p_face):
 		graph, valid_positions = self.warshall()
 		player_index = valid_positions.index((p_pos, p_face))
 		game = Load.Map(self.filename)
@@ -428,83 +372,10 @@ class NextAction():
 					moves = graph[player_index][move_index][1]
 					if moves is None:
 						continue
-					plays.add((moves, push))
-
-		# for x in sorted(plays, key=lambda x : x[0]):
-		# 	print(x)
+					moves += move_to_letter(push)
+					plays.add(moves)
 
 		return plays
-
-	def flood_fill(self, score_table=None):
-		combinations = ['L', 'U', 'R', 'D']
-		
-		game = self.load_game()
-		# print(game)
-		global patterns
-		global repeat_patterns
-		game_str = str(game)
-		if game_str in patterns:
-			# print("repeat pattern")
-			repeat_patterns += 1
-			return patterns[game_str]
-		player_score = game.player.score()
-
-		# print("Floodfill for following:")
-		visited = [game.player.score()]
-		visited_moves = [""]
-		queue = [letter for letter in combinations]
-
-		global pattern_ignore_player
-		global repeat_patterns_ignore_player
-		game.entities = game.entities[1:]
-		game_str_wo_player = str(game)
-		# # THIS GIVES THE WRONG ANSWER
-		# if game_str_wo_player in pattern_ignore_player:
-		# 	if player_score in pattern_ignore_player[game_str_wo_player][0]:
-		# 		# print("REPEAT")
-		# 		repeat_patterns_ignore_player += 1
-		# 		# print(game_str)
-		# 		# print(game)
-		# 		# print(player_score)
-		# 		# print(sorted(pattern_ignore_player[game_str_wo_player][0]))
-		# 		# exit(1)
-		# 		return pattern_ignore_player[game_str_wo_player]
-
-		while queue:
-			moves = queue.pop(0)
-			game = self.load_game()
-			# print(f"Moves to floodfill - {moves}")
-			# print(game)
-			game_state = self.do_moves(game, moves)
-			if score_table:
-				# Attempt to reduce floodfill in subsequent runs
-				copy_game = Load.Map(self.filename)
-				copy_game = self.do_moves(copy_game, self.start_board)
-				# print(f"\tCopy game, {self.start_board}: Moves to play: {moves}")
-				# print(copy_game)
-				result = self.do_moves(copy_game, moves, table=score_table)
-				if result == False:
-					global flood_fill_skip
-					flood_fill_skip += 1
-					# print(f"\t\tfloodskip - {moves}")
-					# print(copy_game)
-					continue
-
-			if game_state.player.score() in visited:
-				continue
-			if game_state.lost():
-				continue
-
-			visited.append(game_state.player.score())
-			visited_moves.append(moves)
-			# print(f"\t{game_state.player.score()} {moves}")
-			for letter in combinations:
-				queue.append(moves + letter)
-
-		# Global memory
-		patterns[game_str] = (visited, visited_moves)
-		pattern_ignore_player[game_str_wo_player] = (visited, visited_moves)
-		return visited, visited_moves
 
 	def find_target_positions(self, sausage, width):
 		# Corners are defined the same for both sausages
@@ -582,8 +453,6 @@ class NextAction():
 				if new_pos not in walls:
 					valid_positions.append((pos, move))
 
-		# for pos in valid_positions:
-		# 	print(pos)
 
 		# Create the graph of valid player moves for each position
 		graph = []
@@ -617,7 +486,6 @@ class NextAction():
 						graph[i][j][0] = graph[i][k][0] + graph[k][j][0]
 						graph[i][j][1] = graph[i][k][1] + graph[k][j][1]
 
-		# print(valid_positions)
 		warshall_buffer[game_str] = (graph, valid_positions)
 		return graph, valid_positions
 

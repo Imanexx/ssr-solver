@@ -101,7 +101,7 @@ class Map():
 		return False
 
 # MAP_NAME = 'maps/beautiful_horizon'
-MAP_NAME = 'maps/maidens_walk'
+MAP_NAME = 'maps/seafinger'
 # MAP_NAME = 'maps/little_fire'
 
 if __name__ == "__main__":
@@ -109,27 +109,6 @@ if __name__ == "__main__":
 	print(game.width)
 	print(game.player.score())
 	print(game)
-
-	# search = NextAction("U", MAP_NAME)
-	# search.warshall()
-	# search.next_actions(game.player.pos, game.player.face_direction)
-
-
-	# visited, moves = search.flood_fill()
-	# print(len(visited), len(moves))
-	# visited = sorted(list(zip(visited, moves)), key=lambda x : int(str(x[0])[-3:]))
-	# print(visited)
-	# for pos, moves in visited:
-	# 	print(game.player.descore_position(pos), moves)
-	
-	# print("")
-
-	# moves = search.reachable()
-	# print(moves)
-
-	# poss = search.find_target_positions(game.entities[1], game.width)
-	# for pos, face, force in (sorted(poss, key=lambda x : x[0])):
-	# 	print(f"{pos} {face:10} {force}")
 
 	algo = Algo(MAP_NAME)
 	moves = algo.run()
@@ -139,4 +118,3 @@ if __name__ == "__main__":
 	# bfs = NextAction('D', MAP_NAME)
 	# moves = bfs.reachable()
 	# print(moves)
-
