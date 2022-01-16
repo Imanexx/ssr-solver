@@ -6,3 +6,4 @@ maps/test*
 decode.py
 tmp.py
 *.prof
+old/

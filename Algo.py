@@ -1,102 +1,15 @@
+from Utils import *
+from collections import deque
 import heapq
 
-from Utils import *
-
-import Map as Load
-import Entities as Entity
+import BaseMap
+import Engine as Eng
 import Tiles as Tile
-
-transpose_skip = 0
-warshall_buffer = {}
-warshall_repeated = 0
-
-def output(str_out, supress=False):
-	if not supress:
-		print(str_out)
-
-def is_water(game, pos):
-	tile = game.find_tile(pos)
-	if not tile:
-		return True
-	return False
-
-def run_deadlock(game):
-	can_push = sausage_push_reachable_by_player(game)
-	if not can_push:
-		return True
-	return False
-
-def sausage_push_reachable_by_player(game):
-	over_water = find_sausages_over_water(game)
-	if not over_water:
-		return True
-
-	# list of sausages
-	for sausage, pos in over_water:
-		overhang_direction = sausage_overhang_direction(game, sausage)
-		# Check that sausage overhangs over water only
-		result = water_along_direction_only(pos, overhang_direction, game)
-		if result == True:
-			return False
-
-	return True
-
-def find_sausages_over_water(game):
-	over_water = []
-	for entity in game.entities:
-		if isinstance(entity, Entity.Sausage):
-			sausage = entity
-			positions = sausage.get_positions()
-			head_position = positions[0]
-			tail_position = positions[1]
-			if is_water(game, head_position):
-				if sausage.sides[0] != '1' and sausage.sides[2] != '1':
-					over_water.append((sausage, head_position))
-			if is_water(game, tail_position):
-				if sausage.sides[1] != '1' and sausage.sides[3] != '1':
-					over_water.append((sausage, tail_position))
-
-	return over_water
-
-def sausage_overhang_direction(game, sausage):
-	positions = sausage.get_positions()
-	
-	# The direction of the overhang sausage
-	direction = sausage_direction(sausage)
-	head = positions[0]
-	tail = positions[1]
-	if is_water(game, head):
-		direction = opposite_force(direction)
-
-	return direction
-
-def sausage_direction(sausage):
-	if sausage.direction == Orientation.VERTICAL:
-		return Move.DOWN
-	elif sausage.direction == Orientation.HORIZONTAL:
-		return Move.RIGHT
-
-def water_along_direction_only(pos, overhang_direction, game):
-	direction = perpendicular_force(overhang_direction)
-	if direction == Move.RIGHT or direction == Move.LEFT:
-		start = (pos // game.width) * game.width
-		for position in range(start, start + game.width):
-			if not is_water(game, position):
-				return False
-			if not is_water(game, calc_move(position, overhang_direction, game.width)):
-				return False
-	if direction == Move.UP or direction == Move.DOWN:
-		start = pos % game.width
-		for position in range(start, game.width * game.height, game.width):
-			if not is_water(game, position):
-				return False
-			if not is_water(game, calc_move(position, overhang_direction, game.width)):
-				return False
-	return True
 
 class MinHeap(str):
 	def __init__(self, s):
-		self.moves = s
+		self.moves = s[0]
+		self.score = s[1]
 
 	# Overloads to make it a min-heap
 	def __lt__(self, s):
@@ -121,263 +34,161 @@ class MinHeap(str):
 	def heap_move(self):
 		return self.moves
 
+	def heap_score(self):
+		return self.score
+
 class Algo():
 	def __init__(self, filename):
-		self.filename = filename
+		self.basemap = BaseMap.LoadMap(filename)
+		self.warshall_buffer = {}
 
-	def play_moves(self, moves : str, debug=False):
-		game = Load.Map(self.filename)
+	def list_moves(self, moves):
+		move_letters = ""
 		for move in moves:
-			move = letter_to_move(move)
-			game.play(move)
-			if debug:
-				print(game.score())
-				print(str(game))
-				print(f"Won? : {game.win()}")
-				print(f"Lost?: {game.lost()}\n")
+			move_letters += move.letter()
+		return move_letters
 
-		return game
+	def BFS(self, starting_state=None, stats=True):
+		if not starting_state:
+			# Default to the beginning of the map
+			starting_state = self.basemap.scores()
+			print(self.basemap)
+			print("STARTING")
 
-	def BFS(self, starting_pos="", supress_output=False):
-		combinations = ['L', 'U', 'R', 'D']
-		initial_game =  self.play_moves(starting_pos)
-		if initial_game.win():
-			return ""
-		starting_score = initial_game.score()
+		visited = []
+		queue = deque()
+		queue.append((starting_state, []))
 
-		visited = {str(starting_score) : []}
-		output("Checking 1 move", supress=supress_output)
+		#### STAT TRACKER ####
+		if stats:
+			print("Checking 1 move")
+			max_moves = 1
+			considered = 0
+		#### STAT TRACKER ####
 
-		winning = []
-		queue = [starting_pos + move for move in combinations]
-		max_moves = 1
-		considered = -1
 		while queue:
-			considered += 1
-			moves = queue.pop(0)
-			if winning and len(moves) > len(winning[0]):
-				break
-
-			if len(moves) > max_moves:
-				output(f'\tTotal considered: {considered}', supress=supress_output)
-				considered = 0
-				output(f"Checking {len(moves)} moves", supress=supress_output)
-				max_moves = len(moves)
-
-			game = self.play_moves(moves)
-			score = game.score()
-			losing = game.lost()
-			win = game.win()
-			if str(score) in visited:
-				visited[str(score)].append(moves)
+			state, moves = queue.popleft()
+			if str(state) in visited:
 				continue
-			if losing:
+			visited.append(str(state))
+
+			#### STAT TRACKER ####
+			if stats:
+				considered += 1
+				if len(moves) + 1 > max_moves:
+					print(f'\tTotal considered: {considered}')
+					considered = 0
+					print(f"Checking {len(moves) + 1} moves")
+					max_moves = len(moves) + 1
+			#### STAT TRACKER ####
+
+			for move in list(Move):
+				game = Eng.Engine(self.basemap, state)
+				if not game.play(move):
+					continue
+
+				if game.loss():
+					continue
+				if game.complete():
+					# Found end
+					break
+
+				queue.append((game.position, moves + [move]))
+			else:
 				continue
-			if win:
-				winning.append(moves)
-				visited[str(score)] = [moves]
-				continue
+			break
+		else:
+			# Ended search
+			print("No solution")
+			return False
 
-			visited[str(score)] = [moves]
-			for letter in combinations:
-				queue.append(moves + letter)
-
-		if winning:
-			print(f"\nLeast Moves: {len(moves) - 1}")
-			for moves in winning:
-				print('\t', moves)
-
-			return winning[0] 
-
-		return False
-
-	def play_and_record(self, moves, move_table, score_table):
-		game = Load.Map(self.filename)
-		move_seq = ""
-		for move in moves:
-			move_seq += move
-			move = letter_to_move(move)
-			game.play(move)
-			
-			if move_seq not in move_table:
-				move_table.append(move_seq)
-				score = str(game.score())
-				if score in score_table:
-					# This is leading to a game that happened earlier
-					global transpose_skip
-					transpose_skip += 1					
-					return False
-				score_table.append(score)
-
-		return game
+		all_moves = moves + [move]
+		if stats:
+			print(f"Length: {len(all_moves)} - Moves: {self.list_moves(all_moves)}")
+		return all_moves
 
 	def Dijkstra(self):
-		initial_game =  self.play_moves("")
-		starting_score = initial_game.score()
-
-		visited = [starting_score]	# Dijkstra visited
-		move_table = []
-		score_table = []
-		completed_best = None
-
-
-		search = NextAction('', self.filename)
-		moves = search.reachable(initial_game.player.pos, initial_game.player.face_direction)
-		# print(sorted(moves,key=lambda x : len(x)))
 		heap = []
-		for m in moves:
-			heapq.heappush(heap, MinHeap(m))
+		visited = []	# Dijk visited
+		played_moves = {}
+
+		heapq.heappush(heap, MinHeap(('', self.basemap.scores())))
+
+		#### STAT TRACKER ####
 		considerations = {}
 		max_moves = len(heap[0].heap_move())
 		lowest = max_moves
 		print(f"Checking {max_moves} moves")
+		#### STAT TRACKER ####
 
-		print(f"{heap=}")
-
+		minimum_found = None
+		upper_bound = None
 		while heap:
-			moves = heapq.heappop(heap).heap_move()
-			tally = len(moves)
-			considerations[tally] = considerations.get(tally, 0) + 1
+			entry = heapq.heappop(heap)
+			state = entry.heap_score()
 			
-			if tally != lowest:
+			if state in visited:
+				continue
+			visited.append(state)
+			state_path = entry.heap_move()
+
+			#### STAT TRACKER ####
+			considerations[len(state_path)] = considerations.get(len(state_path), 0) + 1
+			if len(state_path) != lowest:
 				print(f'\tConsidered: {considerations[lowest]}')
 				print(f'\tMax Depth: {max_moves}')
-				print("")
-				lowest = tally
-				
-				if completed_best and completed_best < lowest:
-					continue
-
+				lowest = len(state_path)
 				print(f"Checking {lowest} moves...")
+			#### STAT TRACKER ####
 
-			game = self.play_and_record(moves, move_table, score_table)
-			if not game:
-				continue
-			
-			# TODO: HACKY
+			if state is None:
+				print(f"Length: {len(state_path)} - Moves: {state_path}")
+				return state_path
+				break
+
+			game = Eng.Engine(self.basemap, state)
 			if game.win():
-				print("Completed search - Full stats:")
-				for length, total in considerations.items():
-					print(f"\tMove(s): {length} Considered: {total}")
-				print("")
-
-				print(f"Least moves ({len(moves)}): {moves}")
-				print(f"\t{transpose_skip=}")
-				print(f"\t{warshall_repeated=}")
-				return moves
-			elif completed_best and len(moves) >= completed_best:
-				print("No way to win with this because a prior sequence was better.")
-				continue
-
-			# House keeping
-			score = game.score()
-			if score in visited:
-				print("\tDijk - Skip")
-				exit(1) # REMOVE
-				continue
-
-			sausages_score = score[1:]
-
-			# When everything is cooked see if you can get to the end
-			if game.all_cooked():
-				print("\tFound a cooked position: BFS to end...")
-				print(f"\t\t{moves}")
-				print('\n======= BFS SECTION ===========')
-				result = self.BFS(moves, supress_output=True)
-				print('\n======= BFS ENDED ===========\n')
-				print(f"Checking {lowest} moves...")
-				
-				if result == False:
-					# TODO: Not possible... This configuration should be banned
-					print("Configuration should be banned")
+				path = self.BFS(game.position, stats=False)
+				if path is False:
 					continue
-				
-				# TODO: Hacky end condition
-				heapq.heappush(heap, MinHeap(result))
-				completed_best = len(result)
-
-			if game.lost():
-				continue
-			visited.append(score)
-
-			# Seems valid - Plan out next lot of actions and add on buffer
-			search = NextAction(moves, self.filename)
-			next_moves = search.reachable(game.player.pos, game.player.face_direction)
-			for next_move in next_moves:
-				new_move = moves + next_move
-				heapq.heappush(heap, MinHeap(new_move))
-				
-				# stat tracker
-				if len(new_move) > max_moves:
-					max_moves = len(new_move)
-				
-	def run(self):		
-		# return self.BFS() # Select Algo
-		return self.Dijkstra() # Select algo
-
-class NextAction():
-	def __init__(self, start_board, filename):
-		self.start_board = start_board
-		self.filename = filename
-
-	def load_game(self):
-		game = Load.Map(self.filename)
-		self.do_moves(game, self.start_board)
-
-		for sausage in game.entities:
-			if isinstance(sausage, Entity.Player):
+				state_path += "".join([move.letter() for move in path])
+				heapq.heappush(heap, MinHeap((state_path, None)))
+				if not minimum_found:
+					minimum_found = len(state_path)
+				elif len(state_path) < minimum_found:
+					minimum_found = len(state_path)
 				continue
 
-		return self.replace_entities_with_walls(game)
+			all_moves = self.reachable(state)
+			for moves, tpos in all_moves:
+				if minimum_found and len(state_path + moves) > minimum_found:
+					continue
+				if upper_bound and len(state_path + moves) > upper_bound:
+					continue
 
-	def replace_entities_with_walls(self, game):
-		for ent in game.entities:
-			if isinstance(ent, Entity.Player):
-				continue
-			for pos in ent.get_positions():
-				game.tiles[pos] = Tile.Ground(pos, zpos=2)
-		game.entities = [game.player]
-		return game
+				player_state = game.position[0][0:2] + tpos
+				ngame = Eng.Engine(self.basemap, [player_state] + game.position[1:])
+				if not ngame.play(Move[moves[-1]]):
+					continue
+				if ngame.loss():
+					continue
+				# if ngame.win():
+				# 	print(f"UPPER BOUND TRIGGER: {len(state_path + moves)}")
+				# 	if not upper_bound:
+				# 		upper_bound = len(state_path + moves)
+				# 	elif len(state_path + moves) < upper_bound:
+				# 		upper_bound = len(state_path + moves)
 
-	def do_moves(self, game, moves, table=None):
-		success = True
-		for move in moves:
-			move = letter_to_move(move)
-			move_success = game.play(move)
-			# print(f"\t{move_success=}")
-			if table and str(game.score()) in table:
-				success = False
-				# print("\tFound position in table:")
-				# print(game)
+				# Only get here if valid play
+				heapq.heappush(heap, MinHeap((state_path + moves, ngame.position)))
 
-		if not success:
-			return False
-		if table:
-			return True
+				#### STAT TRACKER ####
+				if len(state_path + moves) > max_moves:
+					max_moves = len(state_path + moves)
+				#### STAT TRACKER ####
 
-		return game
-
-	def reachable(self, p_pos, p_face):
-		graph, valid_positions = self.warshall()
-		player_index = valid_positions.index((p_pos, p_face))
-		game = Load.Map(self.filename)
-		self.do_moves(game, self.start_board)
-		
-		plays = set()
-		for sausage in game.entities[1:]:
-			results = self.find_target_positions(sausage, game.width)
-			for target, facing, push in results:
-				if (target, facing) in valid_positions:
-					move_index = valid_positions.index((target, facing))
-					moves = graph[player_index][move_index][1]
-					if moves is None:
-						continue
-					moves += move_to_letter(push)
-					plays.add(moves)
-
-		return plays
-
-	def find_target_positions(self, sausage, width):
+	def find_target_positions(self, sausage):
+		width = self.basemap.width
 		# Corners are defined the same for both sausages
 		corners = sausage.get_corners() * 2
 		corner_directions = [
@@ -391,7 +202,7 @@ class NextAction():
 
 		# Edges are slightly different depending on the orientation
 		edges = sausage.get_edges() * 3
-		if sausage.direction == Orientation.HORIZONTAL:
+		if sausage.orientation == Orientation.HORIZONTAL:
 			edge_directions = [
 				Move.UP, Move.UP, Move.RIGHT, Move.DOWN, Move.DOWN, Move.LEFT, # Normals
 				Move.RIGHT, Move.RIGHT, Move.DOWN, Move.LEFT, Move.LEFT, Move.UP,
@@ -400,7 +211,7 @@ class NextAction():
 			edge_forces = [
 				Move.DOWN, Move.DOWN, Move.LEFT, Move.UP, Move.UP, Move.RIGHT,
 			] * 3
-		elif sausage.direction == Orientation.VERTICAL:
+		elif sausage.orientation == Orientation.VERTICAL:
 			edge_directions = [
 				Move.UP, Move.RIGHT, Move.RIGHT, Move.DOWN, Move.LEFT, Move.LEFT, # Normals
 				Move.RIGHT, Move.DOWN, Move.DOWN, Move.LEFT, Move.UP, Move.UP,
@@ -415,41 +226,68 @@ class NextAction():
 		extended_directions = []
 		extended_forces = []
 		for pos, normal in zip(edges[:6], edge_directions[:6]):
-			extended.append(calc_move(pos, normal, width))
-			opposite = opposite_force(normal)
-			extended_directions.append(opposite)
-			extended_forces.append(opposite)
+			extended.append(normal.walk(pos, width))
+			extended_directions.append(normal.opposite())
+			extended_forces.append(normal.opposite())
 
 		all_positions = corners + edges + extended
 		all_face_directions = corner_directions + edge_directions + extended_directions
 		all_forces = corner_forces + edge_forces + extended_forces
 		return list(zip(all_positions, all_face_directions, all_forces))
 
-	def warshall(self):
-		# Load map without the player
-		game = self.load_game()
-		game.entities = game.entities[1:]
-		
-		global warshall_buffer
-		game_str = str(game)
-		if game_str in warshall_buffer:
-			global warshall_repeated
-			# print("Already calculated")
-			warshall_repeated += 1
-			return warshall_buffer[game_str]
+	def replace_entities_with_walls(self, state):
+		wall_positions = []
+		game = Eng.Engine(self.basemap, state)
+		for ent in game.entities:
+			for pos in ent.get_positions():
+				wall_positions.append(pos)
+		return wall_positions
 
-		width = game.width
+	def reachable(self, state):
+		game = Eng.Engine(self.basemap, state)
+		graph, valid_positions = self.warshall(state)
+		player_index = valid_positions.index((game.player.pos, game.player.facing))
+		
+		plays = []
+		# plays = set()
+		for sausage in game.entities:
+			results = self.find_target_positions(sausage)
+			for target, facing, push in results:
+				if (target, facing) in valid_positions:
+					move_index = valid_positions.index((target, facing))
+					moves = graph[player_index][move_index][1]
+					if moves is None:
+						continue
+					moves += push.letter()
+					# plays.add(moves)
+					# print(valid_positions)
+					# print(len(str(self.basemap.width * self.basemap.height)))
+					# print(f'{target:0>{len(str(self.basemap.width * self.basemap.height))}}')
+					# exit(1)
+					plays.append((moves, f'{facing.value}{target:0>{len(str(self.basemap.width * self.basemap.height))}}'))
+
+		return plays
+
+	def warshall(self, state):
+		if str(state[1:]) in self.warshall_buffer:
+			return self.warshall_buffer[str(state[1:])]
+
+		# DESTRUCTIVE WALL CHANGE - NEED TO UNDO AT END OF FUNCTION
+		extra_walls = self.replace_entities_with_walls(state)
+		save_tiles = [self.basemap.tiles[wall] for wall in extra_walls]
+		for wall in extra_walls:
+			self.basemap.tiles[wall] = Tile.Ground(wall, zpos=2)
 
 		# Find all walls and tiles the player can stand on
-		walls = [i for i, tile in enumerate(game.tiles) if isinstance(tile, Tile.Ground) and tile.zpos > 1]
-		ground = [i for i, tile in enumerate(game.tiles) if isinstance(tile, Tile.Ground) and tile.zpos == 1]
+		width = self.basemap.width
+		walls = [i for i, tile in enumerate(self.basemap.tiles) if isinstance(tile, Tile.Ground) and tile.zpos > 1]
+		ground = [i for i, tile in enumerate(self.basemap.tiles) if isinstance(tile, Tile.Ground) and tile.zpos == 1]
 
 		# Get all the valid tiles that the player can stand on without fork bonks
-		possibilities = [Move(i) for i in range(4)]
 		valid_positions = []
 		for pos in ground:
-			for move in possibilities:
-				new_pos = calc_move(pos, move, width)
+			for move in list(Move):
+				new_pos = move.walk(pos, width)
 				if new_pos not in walls:
 					valid_positions.append((pos, move))
 
@@ -460,23 +298,28 @@ class NextAction():
 			row = [[100000, None] for x in range(len(valid_positions))]
 			row[y] = [0, ""]
 
-			for move in possibilities:
-				sim_game = self.load_game()
-				p_pos, p_dir = valid_positions[y]
-				sim_game.player.pos = p_pos
-				sim_game.player.face_direction = p_dir
-				sim_game.entities[0] = sim_game.player
 
-				res = sim_game.play(move)
+			for move in list(Move):
+				game = Eng.Engine(self.basemap, state)
+
+				p_pos, p_dir = valid_positions[y]
+				game.player.pos = p_pos
+				game.player.facing = p_dir
+
+				res = game.play(move)
 				if not res:
 					continue
-				if p_pos == sim_game.player.pos and p_dir == sim_game.player.face_direction:
+				if p_pos == game.player.pos and p_dir == game.player.facing:
 					continue
 
-				index = (valid_positions.index((sim_game.player.pos, sim_game.player.face_direction)))
-				row[index] = [1, move_to_letter(move)]
+				index = (valid_positions.index((game.player.pos, game.player.facing)))
+				row[index] = [1, move.letter()]
 
 			graph.append(row)
+
+		# UNDO DESTRUCTIVE
+		for wall, tile in zip(extra_walls, save_tiles):
+			self.basemap.tiles[wall] = tile
 
 		# Warshall algo
 		for k in range(len(valid_positions)):
@@ -486,6 +329,13 @@ class NextAction():
 						graph[i][j][0] = graph[i][k][0] + graph[k][j][0]
 						graph[i][j][1] = graph[i][k][1] + graph[k][j][1]
 
-		warshall_buffer[game_str] = (graph, valid_positions)
+		self.warshall_buffer[str(state[1:])] = (graph, valid_positions)
 		return graph, valid_positions
 
+if __name__ == '__main__':
+	run = Algo('maps/sad_farm')
+	# run = Algo('maps/the_clover')
+	# run = Algo('maps/inlet_shore')
+	run.Dijkstra()
+	# run.BFS()
+	# print(run.basemap)

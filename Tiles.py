@@ -8,27 +8,12 @@ class Tile(ABC):
 		self.pos = pos
 		self.zpos = zpos
 
-	def __eq__(self, other):
-		# Old legacy code I am trying to get rid of
-		from inspect import getframeinfo, stack
-		caller = getframeinfo(stack()[1][0])
-		print("%s:%d - BEING CALLED" % (caller.filename, caller.lineno)) # python3 syntax print
-
-		if isinstance(other, Entity):
-			# Is the entity on top of this tile?
-			for pos in other.get_positions():
-				if self.pos == pos and self.zpos == other.zpos:
-					return True
-		if isinstance(other, int):
-			return self.pos == other
-		return False
-
 	@abstractmethod
 	def __repr__(self):
 		pass
 
 	@abstractmethod
-	def interact(self, entity):
+	def interact(self, entity, index):
 		pass
 
 class Ground(Tile):
@@ -41,7 +26,7 @@ class Ground(Tile):
 		else:
 			return '.'
 
-	def interact(self, entity):
+	def interact(self, entity, index):
 		pass # Do nothing
 
 
@@ -52,23 +37,14 @@ class Grill(Tile):
 	def __repr__(self):
 		return 'x'
 
-	def interact(self, entity):
+	def interact(self, entity, index):
 		if isinstance(entity, Entity.Sausage):
-			sausage = entity
-			positions = sausage.get_positions()
-			first = positions[0]
-			second = positions[1]
-
-			if first == self.pos:
-				sausage.cook(0)
-			elif second == self.pos:
-				sausage.cook(1)
-
+			entity.cook(index)
 			return
 		elif isinstance(entity, Entity.Player):
-			player = entity
-			body, fork = player.get_positions()
-			if body == self.pos:
-				forces = [opposite_force(player.last_movement)]
-				forces_coords = [player.position]
-				return forces, forces_coords
+			if index == 0: # Player's body on grill
+				# TODO: This is currently an assumption
+				# If a player has a sausage on their head. Steps forwards such that the sausage falls off their head behind them
+				# And THEN steps on a grill, when they step backwards they should push the sausage... Currently that does NOT happen
+				entity.move(entity.prior_move.opposite())
+			return

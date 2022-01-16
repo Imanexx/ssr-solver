@@ -1,10 +1,10 @@
 import re
 from Utils import *
-from Tiles import *
 
+import Tiles as Tile
 import Entities as Entity
 
-
+# GLOBAL
 PADDING = 3
 
 def _preprocess(line : str):
@@ -13,6 +13,16 @@ def _preprocess(line : str):
 	return line
 
 def read_tiles(lines):
+	def map_above_padding(width):
+		return [None] * (width * PADDING)
+
+	def map_below_padding(tiles, width):
+		for _ in range(0, (width * PADDING)):
+			tiles.append(None)
+
+	def map_side_padding(tiles, padding):
+		for _ in range(0, padding):
+			tiles.append(None)
 
 	mapping = {
 		'0' : None,
@@ -20,45 +30,48 @@ def read_tiles(lines):
 		'2' : 'grill',
 	}
 
+	# Height of the map with padding included
 	width = ((len(lines[0]) + 1) // 2) + (PADDING * 2)
-	tiles = [None] * (width * PADDING)
+	tiles = map_above_padding(width)
+	
 	for i, line in enumerate(lines):
+		# END CONDITION - End of map
 		if not line:
-			height = i + PADDING * 2
-
-			for _ in range(0, (width * PADDING)):
-				tiles.append(None)
+			map_below_padding(tiles, width)
+			height = i + PADDING * 2 # Height of the map with padding included
 			return tiles, width, height, i
 
-		for SPACE in range(0, PADDING):
-			tiles.append(None)
+		map_side_padding(tiles, PADDING)
 
 		row = line.split(" ")
 		for j, tile in enumerate(row):
+			# Accurate positioning with padding included
 			x = j + PADDING
 			y = i + PADDING
 
+			# WALL
 			if int(tile) > 2:
 				zheight = int(tile) - 1
-				tiles.append(Ground(calc_pos(y, x, width), zpos=zheight))
+				tiles.append(Tile.Ground(calc_pos(y, x, width), zpos=zheight))
 				continue
 
-			ti = mapping[tile]
-			if not ti:
+			tile_mapping = mapping[tile]
+			if not tile_mapping:
 				tiles.append(None)
 				continue # water
-			if ti == 'ground':
-				tiles.append(Ground(calc_pos(y, x, width)))
-			elif ti == 'grill':
-				tiles.append(Grill(calc_pos(y, x, width)))
-		for SPACE in range(0, PADDING):
-			tiles.append(None)
+			if tile_mapping == 'ground':
+				tiles.append(Tile.Ground(calc_pos(y, x, width)))
+			elif tile_mapping == 'grill':
+				tiles.append(Tile.Grill(calc_pos(y, x, width)))
+		
+		map_side_padding(tiles, PADDING)
 
-def read_entities(read_index, width, lines):
+def read_entities(read_index, width, lines, map_dim):
 	entities = []
 	for line in lines[read_index:]:
 		if not line:
 			continue
+		
 		# Load entities
 		info = line.split(",")
 		info = [x.strip() for x in info]
@@ -75,9 +88,9 @@ def read_entities(read_index, width, lines):
 			elif name[1] == 'v':
 				placement = Orientation.VERTICAL
 			
-			# ZPOS for stacked sausages???
+			# TODO: ZPOS for stacked sausages???
 			
-			sausage = Entity.Sausage(position, placement)
+			sausage = Entity.Sausage(map_dim, position, placement)
 			entities.append(sausage)
 		if name[0] == 'p':
 			dy, dx = info[1], info[2]
@@ -96,26 +109,29 @@ def read_entities(read_index, width, lines):
 			elif dir == 'r':
 				face_direction = Move.RIGHT
 
-			# ZPOS???
+			# TODO: ZPOS for stacked sausages???
 
-			player = Entity.Player(position, face_direction)
+			player = Entity.Player(map_dim, position, face_direction)
 			entities.append(player)
-
-
 
 	return entities
 
-
 def load_map(file_name):
 	with open(file_name, 'r') as f:
-		# Quick preprocess of map file
+		# Quick preprocess of map file - Remove all comments
 		lines = f.readlines()
 		lines = [_preprocess(line) for line in lines if not re.match(r'//', line)]
 
+		"""
+		read_index: The line number to continue reading from
+		"""
 		tiles, width, height, read_index = read_tiles(lines)
-		entities = read_entities(read_index, width, lines)
+		entities = read_entities(read_index, width, lines, map_dim=(width, height))
 
 	return tiles, entities, width, height
 
 if __name__ == '__main__':
-	load_map('inlet_shore')
+	tiles, entities, width, height = load_map('maps/inlet_shore')
+	print(f"{tiles=}")
+	print(f"{entities=}")
+	print(f"{width=} {height=}")

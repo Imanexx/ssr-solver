@@ -1,29 +1,5 @@
 from enum import Enum
 
-class Orientation(Enum):
-	HORIZONTAL 	= 0
-	VERTICAL	= 1
-
-class Move(Enum):
-	UP = 0
-	DOWN = 1
-	LEFT = 2
-	RIGHT = 3
-
-class Action(Enum):
-	WALK = 0
-	ROTATE = 1
-
-def calc_move(pos, direction : Move, width):
-	if direction == Move.UP:
-		return pos - width
-	if direction == Move.DOWN:
-		return pos + width
-	if direction == Move.LEFT:
-		return pos - 1
-	if direction == Move.RIGHT:
-		return pos + 1
-
 def calc_pos(y, x, w):
 	return w * y + x
 
@@ -32,54 +8,64 @@ def decode_pos(pos, w):
 	y = pos // w
 	return y, x
 
-def opposite_force(force : Move):
-	if force == Move.RIGHT:
-		return Move.LEFT
+class Orientation(Enum):
+	HORIZONTAL 	= 0
+	VERTICAL	= 1
 
-	if force == Move.LEFT:
+	def walk(self, pos, width):
+		if self.name == "HORIZONTAL":
+			return pos + 1
+		elif self.name == "VERTICAL":
+			return pos + width
+
+class Action(Enum):
+	WALK = 0
+	ROTATE = 1
+	STRAFE = 2
+
+class Failure(Enum):
+	NONE 		= 0
+	COLLISION 	= 1
+	DROWNED 	= 2
+
+class Move(Enum):
+	LEFT 	= 0
+	RIGHT 	= 1
+	UP 		= 2
+	DOWN 	= 3
+	# Alias values -> Move[letter]
+	L = 0
+	R = 1
+	U = 2
+	D = 3
+
+	def shift(self, width):
+		if self.name == 'LEFT':
+			return -1
+		if self.name == 'RIGHT':
+			return 1
+		if self.name == 'UP':
+			return -width
+		if self.name == 'DOWN':
+			return width
+
+	def walk(self, pos, width):
+		return pos + self.shift(width)
+
+	def opposite(self):
+		if self.name == 'LEFT':
+			return Move.RIGHT
+		if self.name == 'RIGHT':
+			return Move.LEFT
+		if self.name == 'UP':
+			return Move.DOWN
+		if self.name == 'DOWN':
+			return Move.UP
+
+	def letter(self):
+		return self.name[0]
+
+	def perpendicular(self):
+		if self.name == 'LEFT' or self.name == 'RIGHT':
+			return Move.DOWN
 		return Move.RIGHT
-
-	if force == Move.UP:
-		return Move.DOWN
-
-	if force == Move.DOWN:
-		return Move.UP
-
-def move_to_letter(move):
-	if move == Move.UP:
-		return 'U'
-	if move == Move.DOWN:
-		return 'D'
-	if move == Move.LEFT:
-		return 'L'
-	if move == Move.RIGHT:
-		return 'R'
-
-def letter_to_move(letter):
-	if letter == 'L':
-		return Move.LEFT
-
-	if letter == 'U':
-		return Move.UP
-
-	if letter == 'R':
-		return Move.RIGHT
-
-	if letter == 'D':
-		return Move.DOWN
-
-def perpendicular_force(force : Move):
-	if force == Move.RIGHT or force == Move.LEFT:
-		return Move.DOWN
-	return Move.RIGHT
-
-def euclidean_moves(pos, width):
-	moves = [Move.UP, Move.DOWN, Move.LEFT, Move.RIGHT]
-	positions = []
-	for move in moves:
-		pnew = calc_move(pos, move, width)
-		positions.append(pnew)
-		if move == Move.UP or move == Move.DOWN:
-			positions.append(pnew - 1)
-			positions.append(pnew + 1)
-	return positions
