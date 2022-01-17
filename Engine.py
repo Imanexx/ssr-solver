@@ -146,7 +146,14 @@ class Engine():
 		for index, pos in enumerate(entity.get_positions()):
 			tile = self.tiles[pos]
 			if isinstance(tile, Tile.Grill):
-				tile.interact(entity, index)
+				result = tile.interact(entity, index)
+
+				if isinstance(entity, Entity.Player) and result:
+					# Better move the object the player is holding too
+					if self.player.holding:
+						sausage = self.entities[self.player.holding - 1]
+						_, __, pos = sausage.move(self.player.prior_move)
+						sausage.update_pos(pos)
 
 	def apply_forces(self, forces, fpos):
 		failures = []	# Failure buffer - collision is more important than drowning
@@ -254,6 +261,8 @@ class Engine():
 
 		# Make player interact with tiles
 		self.grill_interact(self.player)
+
+
 		# TODO HACKY
 		# t_fork_pos = self.player.get_fork_position()
 		# if action == action.STRAFE and self.player.holding == 0 and self.find_entity(t_fork_pos):
@@ -266,21 +275,24 @@ class Engine():
 
 if __name__ == '__main__':
 	import BaseMap
-	basemap = BaseMap.LoadMap('maps/emerson_jetty')
+	basemap = BaseMap.LoadMap('maps/twisty_farm')
 	engine = Engine(basemap, basemap.scores())
 	print(engine)
-	for i, move in enumerate([Move.LEFT,Move.LEFT,Move.DOWN,Move.UP,Move.UP,Move.UP,Move.UP,Move.UP,Move.UP,Move.RIGHT,Move.LEFT,Move.LEFT,Move.LEFT,Move.UP,Move.DOWN,Move.DOWN,Move.LEFT,Move.LEFT,Move.LEFT,Move.LEFT,Move.LEFT,Move.DOWN,Move.LEFT,Move.RIGHT,Move.DOWN,Move.DOWN,Move.RIGHT,Move.RIGHT,Move.UP,Move.UP,Move.RIGHT,Move.RIGHT,Move.UP,Move.UP,Move.RIGHT,Move.RIGHT,Move.RIGHT,Move.DOWN,Move.DOWN,Move.DOWN,Move.DOWN,Move.RIGHT,Move.DOWN,Move.UP,Move.UP,Move.UP,Move.UP,Move.RIGHT,Move.RIGHT,Move.DOWN,Move.LEFT,Move.LEFT,Move.UP,Move.LEFT,Move.RIGHT,Move.UP,Move.UP,Move.RIGHT,Move.RIGHT,Move.RIGHT,Move.DOWN,Move.RIGHT,Move.LEFT,Move.LEFT,Move.DOWN,Move.DOWN,Move.RIGHT,Move.RIGHT,Move.RIGHT,Move.RIGHT,Move.RIGHT,Move.UP,Move.LEFT,Move.UP,Move.DOWN,Move.LEFT,Move.DOWN,Move.RIGHT,Move.LEFT,Move.LEFT,Move.LEFT,Move.LEFT,Move.LEFT,Move.LEFT,Move.LEFT,Move.UP,Move.DOWN,Move.DOWN,Move.DOWN,Move.DOWN,Move.DOWN,Move.DOWN,Move.LEFT,Move.RIGHT,Move.RIGHT,Move.RIGHT,Move.RIGHT,Move.RIGHT,Move.RIGHT,Move.RIGHT,Move.RIGHT,Move.UP,Move.UP,Move.UP,Move.UP,Move.UP,Move.DOWN,Move.DOWN,Move.DOWN,Move.DOWN,Move.DOWN,Move.DOWN,Move.LEFT,Move.RIGHT,Move.RIGHT,Move.DOWN,Move.UP,Move.UP,Move.RIGHT,Move.LEFT,Move.LEFT,Move.LEFT,Move.LEFT,Move.LEFT,Move.LEFT,Move.LEFT,Move.LEFT,Move.LEFT,Move.DOWN,Move.LEFT,Move.LEFT,Move.UP,Move.UP,Move.UP,Move.DOWN,Move.DOWN,Move.RIGHT,Move.RIGHT,Move.RIGHT,Move.RIGHT,Move.DOWN,Move.DOWN,Move.DOWN,Move.DOWN,Move.DOWN,Move.RIGHT,Move.DOWN,Move.DOWN,Move.RIGHT,Move.DOWN,Move.DOWN,Move.RIGHT,Move.DOWN,Move.UP,Move.RIGHT,Move.UP,Move.UP,Move.RIGHT,Move.LEFT,Move.LEFT,Move.UP,Move.LEFT,Move.DOWN,Move.LEFT,Move.RIGHT,Move.UP,Move.UP,Move.UP,Move.RIGHT,Move.LEFT,Move.DOWN,Move.UP,Move.UP,Move.UP,Move.UP,Move.UP,Move.RIGHT,Move.LEFT,Move.LEFT]):
+	for i, move in enumerate([Move.DOWN, Move.DOWN, Move.LEFT, Move.RIGHT, Move.DOWN, Move.DOWN, Move.RIGHT, Move.LEFT, Move.UP, Move.UP, Move.RIGHT, Move.RIGHT, Move.RIGHT, Move.LEFT, Move.LEFT, Move.UP, Move.RIGHT, Move.RIGHT, Move.UP, Move.UP, Move.LEFT, Move.UP, Move.LEFT, Move.UP, Move.UP, Move.RIGHT, Move.RIGHT, Move.UP, Move.RIGHT, Move.UP, Move.RIGHT, Move.RIGHT, Move.RIGHT, Move.UP, Move.RIGHT, Move.RIGHT, Move.RIGHT, Move.RIGHT, Move.RIGHT, Move.RIGHT, Move.RIGHT, Move.RIGHT, Move.RIGHT, Move.DOWN, Move.RIGHT, Move.DOWN, Move.UP, Move.LEFT, Move.LEFT, Move.DOWN, Move.LEFT, Move.LEFT, Move.LEFT, Move.LEFT, Move.DOWN, Move.DOWN, Move.RIGHT, Move.RIGHT, Move.RIGHT, Move.UP, Move.RIGHT, Move.UP, Move.RIGHT, Move.RIGHT, Move.UP, Move.RIGHT, Move.RIGHT, Move.DOWN, Move.DOWN, Move.DOWN, Move.DOWN, Move.DOWN, Move.DOWN, Move.DOWN, Move.DOWN, Move.DOWN, Move.DOWN, Move.DOWN, Move.DOWN, Move.DOWN]):
 		print(f"{i} {move=}")
 		print(engine.play(move))
 		print(f"{engine.position} {engine.win()=} {engine.complete()=}")
-		print(engine)
+		# print(engine)
+		if i == 32:
+			break
 		# engine = Engine(basemap, engine.position)
 
+	print(engine)
 	print(engine.position)
 
 
-	# basemap = BaseMap.LoadMap('maps/emerson_jetty')
-	# engine = Engine(basemap, ['112133', '2000000108'])
+	# basemap = BaseMap.LoadMap('maps/twisty_farm')
+	# engine = Engine(basemap, ['101230', '2100000200', '2010000232'])
 	# print(engine)
-	# print(engine.play(Move.UP))
+	# print(engine.play(Move.RIGHT))
 	# print(engine)

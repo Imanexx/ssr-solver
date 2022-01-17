@@ -206,6 +206,7 @@ class Player(Entity):
 
 	def strafe_walk(self, force):
 		self.pos = self.act(force)
+		self.prior_move = force
 		if force == self.facing:
 			return [], [], Action.STRAFE
 		return [force], [self.pos], Action.STRAFE

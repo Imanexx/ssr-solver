@@ -47,4 +47,5 @@ class Grill(Tile):
 				# If a player has a sausage on their head. Steps forwards such that the sausage falls off their head behind them
 				# And THEN steps on a grill, when they step backwards they should push the sausage... Currently that does NOT happen
 				entity.move(entity.prior_move.opposite())
+				return True
 			return

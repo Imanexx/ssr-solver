@@ -82,21 +82,29 @@ class Algo():
 					max_moves = len(moves) + 1
 			#### STAT TRACKER ####
 
-			for move in list(Move):
-				game = Eng.Engine(self.basemap, state)
-				if not game.play(move):
-					continue
+			try:
+				for move in list(Move):
+					game = Eng.Engine(self.basemap, state)
+					if not game.play(move):
+						continue
 
-				if game.loss():
-					continue
-				if game.complete():
-					# Found end
-					break
+					if game.loss():
+						continue
+					if game.complete():
+						# Found end
+						break
 
-				queue.append((game.position, moves + [move]))
-			else:
-				continue
-			break
+					queue.append((game.position, moves + [move]))
+				else:
+					continue
+				break
+			except Exception as e:
+				print("\n\nRANDOM CRASH HAPPENED")
+				print(state)
+				print(moves)
+				print(move)
+				print(e)
+				exit(1)
 		else:
 			# Ended search
 			print("No solution")
@@ -333,9 +341,9 @@ class Algo():
 		return graph, valid_positions
 
 if __name__ == '__main__':
-	run = Algo('maps/sad_farm')
+	run = Algo('maps/twisty_farm')
 	# run = Algo('maps/the_clover')
 	# run = Algo('maps/inlet_shore')
-	run.Dijkstra()
-	# run.BFS()
+	# run.Dijkstra()
+	run.BFS()
 	# print(run.basemap)
