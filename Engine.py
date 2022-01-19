@@ -83,9 +83,10 @@ class Engine():
 		import re
 		symbols = []
 		positions = []
-		psym, ppos = self.player.get_symbols()
-		symbols += psym
-		positions += ppos
+		if self.player is not None:
+			psym, ppos = self.player.get_symbols()
+			symbols += psym
+			positions += ppos
 		for entity in self.entities:
 			chars, pos = entity.get_symbols()
 			symbols += chars
@@ -111,6 +112,7 @@ class Engine():
 		space_width = ' ' * self.width + '\n'
 		output = re.sub(space_width, '', output)
 		return output
+
 
 	def entity_collides_with_world(self, entity):
 		for pos in entity.get_positions():

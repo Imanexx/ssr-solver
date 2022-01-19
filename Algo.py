@@ -341,7 +341,7 @@ class Algo():
 		return graph, valid_positions
 
 if __name__ == '__main__':
-	run = Algo('maps/twisty_farm')
+	run = Algo('maps/rough_field')
 	# run = Algo('maps/the_clover')
 	# run = Algo('maps/inlet_shore')
 	# run.Dijkstra()
